@@ -2207,8 +2207,8 @@ textarea.fld-in { resize: vertical; min-height: 60px; font-family: 'IBM Plex San
           <span class="lbl">From gallery</span>
         </button>
       </div>
-      <input type="file" id="photoCamIn" accept="image/*" capture="environment" style="display:none">
-      <input type="file" id="photoGalIn" accept="image/*" multiple style="display:none">
+      <input type="file" id="photoCamIn" accept="image/*" capture="environment" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+      <input type="file" id="photoGalIn" accept="image/*" multiple style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
       <div class="photo-strip" id="photoStrip"></div>
       <div class="photo-hint" id="photoHint" style="display:none">Tap a thumb to remove</div>
     </div>
@@ -2997,8 +2997,16 @@ function renderPhotoStrip() {
 }
 
 async function addPhotoFiles(fileList) {
-  const files = Array.from(fileList || []).filter(f => f.type.startsWith('image/'));
-  if (!files.length) return;
+  if (!S.draft) { toast('Open an attempt first'); return; }
+  S.draft.photos = S.draft.photos || [];
+  const all = Array.from(fileList || []);
+  const files = all.filter(f => f && (f.type || '').startsWith('image/'));
+  if (!files.length) {
+    if (all.length) toast('Not an image file');
+    return;
+  }
+  toast(files.length === 1 ? 'Adding photo…' : `Adding ${files.length} photos…`);
+  let added = 0;
   for (const f of files) {
     if (S.draft.photos.length >= 12) { toast('Max 12 photos per entry'); break; }
     try {
@@ -3008,11 +3016,13 @@ async function addPhotoFiles(fileList) {
         dataUrl,
         addedAt: Date.now()
       });
-    } catch (e) {
-      toast("Couldn't read that photo");
+      added++;
+    } catch (err) {
+      toast("Couldn't read that photo: " + (err && err.message ? err.message : 'unknown'));
     }
   }
   renderPhotoStrip();
+  if (added) toast(added === 1 ? 'Photo added — tap Save' : `${added} photos added — tap Save`);
   vibrate(6);
 }
 
@@ -4095,14 +4105,14 @@ $('#whenNow').onclick = () => {
 $('#photoCamBtn').onclick = () => $('#photoCamIn').click();
 $('#photoGalBtn').onclick = () => $('#photoGalIn').click();
 $('#photoCamIn').onchange = async e => {
-  const files = e.target.files;
+  const files = Array.from(e.target.files || []);
   e.target.value = '';
-  if (files && files.length) await addPhotoFiles(files);
+  if (files.length) await addPhotoFiles(files);
 };
 $('#photoGalIn').onchange = async e => {
-  const files = e.target.files;
+  const files = Array.from(e.target.files || []);
   e.target.value = '';
-  if (files && files.length) await addPhotoFiles(files);
+  if (files.length) await addPhotoFiles(files);
 };
 
 // Detail sheet bindings
